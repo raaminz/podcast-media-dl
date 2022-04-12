@@ -35,8 +35,9 @@ def downloadMedia = { String mUrl, File file ->
 def extention= { String fileName ->
         fileName.substring(fileName.lastIndexOf("."));
 }
-
-
+def refineName = { String name -> 
+	name.replaceAll("/","_")
+}
 
 assert url, "URL is null, check --help for more information"
 
@@ -46,7 +47,7 @@ println "URL '$url' downloaded"
 assert rootNode.name().equalsIgnoreCase('rss') , "Not a valid RSS!"
 def channelName = rootNode.channel.title.text()
 println "Podcast name is ${channelName}"
-channelName = channelName.replaceAll('/','_')
+channelName = refineName(channelName)
 
 
 dir = (dir) ?  new File(dir, channelName) : new File(channelName)
@@ -61,9 +62,16 @@ downloadMedia(urlImage , new File(dir , "cover"+extention(urlImage)))
 
 def all =  rootNode.channel.item.size()
 
+new File(dir , "info.md").withWriter ( out -> {
+ out.println("#### Title")
+ out.println(rootNode.channel.title.text())
+ out.println("#### Description")
+ out.println(rootNode.channel.description.text())
+})
+
 rootNode.channel.item.each {
   
-  def subdir = new File(dir, String.valueOf(all--));
+  def subdir = new File(dir, "${all--} - ${it.title.text()}" );
   println "Downloading episode data '${it.title.text()}' ..."
   subdir.mkdir();
   def coverUrl = it.image.@href.text()
@@ -75,7 +83,14 @@ rootNode.channel.item.each {
   def mediaUrl = it.enclosure.@url.text()
   if(mediaUrl){
     downloadMedia(mediaUrl , new File(subdir , "content"+extention(mediaUrl)))
-  }  
-
+  }
+  new File(subdir , "info.md").withWriter { out -> 
+    out.println("#### Title")
+    out.println(it.title.text())
+    out.println("#### Publish date")
+    out.println(it.pubDate.text())
+    out.println("#### Description")
+    out.println(it.description.text())
+  }
 }
 
